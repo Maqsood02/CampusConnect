@@ -1,0 +1,27 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: cpms-backend
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/cpms}
+      auto-index-creation: true
+
+jwt:
+  secret: cpmsSuperSecretKeyForJWTTokensLongEnoughToSatisfyHMACSHA256Requirements2026!
+  expiration-ms: 86400000 # 24 Hours
+
+app:
+  cors:
+    allowed-origins:
+      - "http://localhost:5173"
+      - "http://localhost:3000"
+      - "https://*.vercel.app"
+
+logging:
+  level:
+    root: INFO
+    com.cpms: DEBUG
+    org.springframework.data.mongodb: INFO
