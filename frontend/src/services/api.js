@@ -24,6 +24,17 @@ const STORAGE_KEY_NOTIFS = 'cpms_notifs';
 const STORAGE_KEY_APTITUDE = 'cpms_aptitude_questions';
 const STORAGE_KEY_PLACEMENTS = 'cpms_placement_records';
 const STORAGE_KEY_COMPANY_HISTORIES = 'cpms_company_histories';
+const STORAGE_KEY_AUDIT_LOGS = 'cpms_audit_logs';
+const STORAGE_KEY_REGISTERED_USERS = 'cpms_registered_users';
+
+const INITIAL_AUDIT_LOGS = [
+  { id: 'log_1', action: 'SECURITY_LOGIN_SUCCESS', user: 'officer@cpms.edu', ip: '192.168.1.104', time: '10 mins ago', level: 'INFO', details: 'Authenticated via institutional SSO & JWT validation' },
+  { id: 'log_2', action: 'RECRUITMENT_DRIVE_POSTED', user: 'officer@cpms.edu', ip: '192.168.1.104', time: '1 hour ago', level: 'NOTICE', details: 'Google Cloud Super Dream drive published with 8.5 CGPA threshold' },
+  { id: 'log_3', action: 'STUDENT_ELIGIBILITY_VERIFIED', user: 'officer@cpms.edu', ip: '172.16.4.12', time: '3 hours ago', level: 'INFO', details: 'Verified transcripts and active backlogs status for candidate' },
+  { id: 'log_4', action: 'CANDIDATE_SHORTLIST_CONFIRMED', user: 'officer@cpms.edu', ip: '192.168.1.104', time: '5 hours ago', level: 'INFO', details: '18 candidates shortlisted for Microsoft Technical Assessment' },
+  { id: 'log_5', action: 'SYSTEM_DB_INDEX_OPTIMIZED', user: 'admin@cpms.edu', ip: '127.0.0.1', time: 'Yesterday', level: 'SYSTEM', details: 'MongoDB compound indexes optimized for placement metrics query performance' },
+  { id: 'log_6', action: 'RBAC_SECURITY_AUDIT_PASSED', user: 'admin@cpms.edu', ip: '127.0.0.1', time: 'Yesterday', level: 'INFO', details: '100% route clearance enforcement validated across all role tiers' }
+];
 
 // Load or initialize local mock store
 function getStored(key, initialVal) {
@@ -43,13 +54,30 @@ function setStored(key, value) {
   }
 }
 
-// Initial state cache
+function getInitialUser() {
+  const stored = getStored(STORAGE_KEY_USER, null);
+  if (!stored) return null;
+  // Clear obsolete demo user accounts from storage
+  if (
+    stored.email === 'alex.mercer@cpms.edu' ||
+    stored.email === 'student@cpms.edu' ||
+    stored.email === 'officer@cpms.edu' ||
+    stored.email === 'admin@cpms.edu' ||
+    stored.fullName === 'Alex Mercer'
+  ) {
+    try {
+      localStorage.removeItem(STORAGE_KEY_USER);
+      localStorage.removeItem(STORAGE_KEY_TOKEN);
+    } catch (_) {}
+    return null;
+  }
+  return stored;
+}
+
+// Initial state cache - starts with no logged-in user unless user authenticated
 let state = {
-  currentUser: getStored(STORAGE_KEY_USER, {
-    ...INITIAL_STUDENTS[0],
-    role: 'Student'
-  }),
-  token: localStorage.getItem(STORAGE_KEY_TOKEN) || 'demo-jwt-token-active',
+  currentUser: getInitialUser(),
+  token: localStorage.getItem(STORAGE_KEY_TOKEN) || null,
   students: getStored(STORAGE_KEY_STUDENTS, INITIAL_STUDENTS),
   officer: INITIAL_OFFICER,
   admin: INITIAL_ADMIN,
@@ -62,6 +90,7 @@ let state = {
   branchPerformance: INITIAL_BRANCH_PERFORMANCE,
   notifications: getStored(STORAGE_KEY_NOTIFS, INITIAL_NOTIFICATIONS),
   aptitudeQuestions: getStored(STORAGE_KEY_APTITUDE, INITIAL_APTITUDE_QUESTIONS),
+  auditLogs: getStored(STORAGE_KEY_AUDIT_LOGS, INITIAL_AUDIT_LOGS),
   isLiveBackend: false
 };
 
@@ -97,6 +126,29 @@ export async function checkBackendHealth() {
   }
 }
 
+// Unified authenticated HTTP request helper
+export async function requestWithAuth(url, options = {}) {
+  const token = state.token || localStorage.getItem(STORAGE_KEY_TOKEN);
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers || {})
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  try {
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+      console.warn('Session expired or unauthorized. Logging out.');
+      api.logout();
+      throw new Error('Authentication token invalid or expired. Please sign in.');
+    }
+    return res;
+  } catch (err) {
+    throw err;
+  }
+}
+
 // API Service exports
 export const api = {
   // Authentication & Persona Switching
@@ -104,27 +156,53 @@ export const api = {
     return state.currentUser;
   },
 
+  getToken() {
+    return state.token || localStorage.getItem(STORAGE_KEY_TOKEN);
+  },
+
   switchPersona(roleName) {
+    let generatedToken = 'demo-jwt-student-token';
     if (roleName === 'Student') {
       const stud = state.students[0];
       state.currentUser = { ...stud, role: 'Student' };
+      generatedToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzdHVkZW50QGNwbXMuZWR1Iiwicm9sZSI6IlJPTEVfU1RVREVOVCJ9.mockToken';
     } else if (roleName === 'Placement Officer') {
       state.currentUser = { ...state.officer, role: 'Placement Officer' };
+      generatedToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJvZmZpY2VyQGNwbXMuZWR1Iiwicm9sZSI6IlJPTEVfT0ZGSUNFUiJ9.mockToken';
     } else if (roleName === 'Administrator') {
       state.currentUser = { ...state.admin, role: 'Administrator' };
+      generatedToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbkBjcG1zLmVkdSIsInJvbGUiOiJST0xFX0FETUlOIn0.mockToken';
     }
+    state.token = generatedToken;
     setStored(STORAGE_KEY_USER, state.currentUser);
+    localStorage.setItem(STORAGE_KEY_TOKEN, generatedToken);
+
+    // Record audit event
+    this.addAuditLog({
+      action: 'SECURITY_PERSONA_SWITCH',
+      user: state.currentUser?.email || 'unknown',
+      ip: '127.0.0.1',
+      level: 'INFO',
+      details: `Switched active persona to ${roleName} with verified RBAC token`
+    });
+
     notifyListeners();
     return state.currentUser;
   },
 
   async login(email, password) {
+    if (!email || !password) {
+      throw new Error('Please enter both email and password.');
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
     // Try live API first if available
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email: cleanEmail, password })
       });
       if (res.ok) {
         const data = await res.json();
@@ -132,29 +210,255 @@ export const api = {
         state.token = data.token;
         setStored(STORAGE_KEY_USER, state.currentUser);
         localStorage.setItem(STORAGE_KEY_TOKEN, state.token);
+
+        this.addAuditLog({
+          action: 'SECURITY_LOGIN_SUCCESS',
+          user: cleanEmail,
+          ip: '127.0.0.1',
+          level: 'INFO',
+          details: `Direct API login verified with JWT issued`
+        });
+
         notifyListeners();
         return { success: true, user: data.user };
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        if (state.isLiveBackend) {
+          throw new Error(errData.message || 'Invalid email or password.');
+        }
       }
-    } catch {
+    } catch (err) {
+      if (state.isLiveBackend) {
+        throw err;
+      }
       // Fall through to local simulation
     }
 
-    // Local simulation based on email
-    if (email.includes('officer')) {
-      return { success: true, user: this.switchPersona('Placement Officer') };
-    } else if (email.includes('admin')) {
-      return { success: true, user: this.switchPersona('Administrator') };
-    } else {
-      return { success: true, user: this.switchPersona('Student') };
+    // Default Admin login
+    if (cleanEmail === 'admin@cpms' || cleanEmail === 'admin@cpms.edu') {
+      if (password === 'Cpms@123456' || password === 'Password123!') {
+        state.currentUser = {
+          id: 'usr_admin',
+          email: 'admin@cpms',
+          fullName: 'Administrator',
+          role: 'Administrator',
+          department: 'Dean Office & Institutional Affairs'
+        };
+        state.token = 'jwt-admin-' + Date.now();
+        setStored(STORAGE_KEY_USER, state.currentUser);
+        localStorage.setItem(STORAGE_KEY_TOKEN, state.token);
+        this.addAuditLog({
+          action: 'SECURITY_LOGIN_SUCCESS',
+          user: 'admin@cpms',
+          ip: '127.0.0.1',
+          level: 'INFO',
+          details: 'Administrator authenticated via institutional governance clearance'
+        });
+        notifyListeners();
+        return { success: true, user: state.currentUser };
+      } else {
+        throw new Error('Incorrect password. Please verify your credentials.');
+      }
+    }
+
+    // Placement Officer default login
+    if (cleanEmail === 'officer@cpms.edu' || cleanEmail === 'officer@cpms') {
+      if (password === 'Password123!' || password === 'Cpms@123456') {
+        state.currentUser = {
+          ...state.officer,
+          role: 'Placement Officer'
+        };
+        state.token = 'jwt-officer-' + Date.now();
+        setStored(STORAGE_KEY_USER, state.currentUser);
+        localStorage.setItem(STORAGE_KEY_TOKEN, state.token);
+        notifyListeners();
+        return { success: true, user: state.currentUser };
+      } else {
+        throw new Error('Incorrect password. Please verify your credentials.');
+      }
+    }
+
+    // Check provisioned officers in local storage
+    const storedOfficers = getStored('cpms_officers', []);
+    const matchedOfficer = storedOfficers.find(o => o.email?.toLowerCase() === cleanEmail);
+    if (matchedOfficer) {
+      if (matchedOfficer.password && matchedOfficer.password !== password) {
+        throw new Error('Incorrect password. Please verify your credentials.');
+      }
+      state.currentUser = { ...matchedOfficer, role: 'Placement Officer' };
+      state.token = 'jwt-officer-' + Date.now();
+      setStored(STORAGE_KEY_USER, state.currentUser);
+      localStorage.setItem(STORAGE_KEY_TOKEN, state.token);
+      notifyListeners();
+      return { success: true, user: state.currentUser };
+    }
+
+    throw new Error('No account found with this email. Please check your credentials or register a new account.');
+  },
+
+  async sendOtp(email, purpose = 'REGISTRATION') {
+    if (!email) throw new Error('Email address is required.');
+    const cleanEmail = email.trim().toLowerCase();
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, purpose })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return { success: true, message: data.message || `Verification code sent to ${cleanEmail}` };
+      }
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to dispatch verification code.');
+    } catch (err) {
+      if (state.isLiveBackend) throw err;
+      // Local fallback simulation
+      const mockCode = Math.floor(100000 + Math.random() * 900000).toString();
+      sessionStorage.setItem(`cpms_otp_${cleanEmail}`, mockCode);
+      return { success: true, message: `OTP code dispatched to ${cleanEmail}` };
+    }
+  },
+
+  async verifyOtp(email, otp, purpose = 'REGISTRATION') {
+    if (!email || !otp) throw new Error('Email and 6-digit OTP code are required.');
+    const cleanEmail = email.trim().toLowerCase();
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, otp: otp.trim(), purpose })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return { success: true, verified: true, message: data.message || 'Email verified successfully.' };
+      }
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Invalid or expired OTP code.');
+    } catch (err) {
+      if (state.isLiveBackend) throw err;
+      const stored = sessionStorage.getItem(`cpms_otp_${cleanEmail}`);
+      if (stored && stored === otp.trim()) {
+        return { success: true, verified: true, message: 'Email verified successfully.' };
+      }
+      throw new Error('Invalid or expired OTP code.');
+    }
+  },
+
+  async resetPasswordWithOtp(email, otp, newPassword) {
+    if (!email || !otp || !newPassword) throw new Error('All fields are required.');
+    const cleanEmail = email.trim().toLowerCase();
+    try {
+      const res = await fetch('/api/auth/reset-password-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, otp: otp.trim(), newPassword })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return { success: true, message: data.message || 'Password reset successfully.' };
+      }
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to reset password.');
+    } catch (err) {
+      if (state.isLiveBackend) throw err;
+      return this.resetPassword(email, otp, newPassword);
+    }
+  },
+
+  async createOfficer(officerData) {
+    try {
+      const res = await requestWithAuth('/api/admin/officers', {
+        method: 'POST',
+        body: JSON.stringify(officerData)
+      });
+      const storedOfficers = getStored('cpms_officers', []);
+      const newOff = res.officer || { ...officerData, id: 'off_' + Date.now(), role: 'Placement Officer' };
+      storedOfficers.push(newOff);
+      setStored('cpms_officers', storedOfficers);
+      this.addAuditLog({
+        action: 'OFFICER_ACCOUNT_PROVISIONED',
+        user: officerData.email,
+        ip: '127.0.0.1',
+        level: 'NOTICE',
+        details: `Placement Officer account provisioned for ${officerData.fullName}`
+      });
+      notifyListeners();
+      return res;
+    } catch (err) {
+      if (state.isLiveBackend) throw err;
+      const storedOfficers = getStored('cpms_officers', []);
+      const newOff = { ...officerData, id: 'off_' + Date.now(), role: 'Placement Officer' };
+      storedOfficers.push(newOff);
+      setStored('cpms_officers', storedOfficers);
+      this.addAuditLog({
+        action: 'OFFICER_ACCOUNT_PROVISIONED',
+        user: officerData.email,
+        ip: '127.0.0.1',
+        level: 'NOTICE',
+        details: `Placement Officer account provisioned for ${officerData.fullName}`
+      });
+      notifyListeners();
+      return { success: true, officer: newOff, message: `Placement Officer account provisioned for ${officerData.email}` };
+    }
+  },
+
+  async getOfficers() {
+    try {
+      const res = await requestWithAuth('/api/admin/officers');
+      if (Array.isArray(res) && res.length > 0) {
+        return res;
+      }
+    } catch (_) {}
+    return getStored('cpms_officers', [state.officer]);
+  },
+
+  async notifyEligibleStudents(driveId) {
+    try {
+      const res = await requestWithAuth(`/api/drives/${driveId}/notify-eligible`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || err.error || 'Failed to dispatch eligibility notifications.');
+    } catch (err) {
+      if (state.isLiveBackend) throw err;
+      return { success: true, notifiedCount: 4, message: 'Simulated eligibility notifications dispatched.' };
+    }
+  },
+
+  async sendTestEmail(to, subject, message) {
+    try {
+      const res = await fetch('/api/notifications/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to, subject, message })
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to dispatch test email.');
+    } catch (err) {
+      if (state.isLiveBackend) throw err;
+      return { success: true, recipient: to, message: `Simulated test email dispatched to ${to}` };
     }
   },
 
   async register(userData) {
+    if (!userData.email || !userData.password) {
+      throw new Error('Email and password are required.');
+    }
+
+    const cleanEmail = userData.email.trim().toLowerCase();
+
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData)
+        body: JSON.stringify({ ...userData, email: cleanEmail })
       });
       if (res.ok) {
         const data = await res.json();
@@ -169,32 +473,72 @@ export const api = {
       // Fall through to local simulation
     }
 
+    const regUsers = getStored(STORAGE_KEY_REGISTERED_USERS, []);
+    const existing = regUsers.find(u => u.email?.toLowerCase() === cleanEmail);
+    if (existing) {
+      throw new Error('An account with this email address already exists. Please sign in instead.');
+    }
+
+    const role = userData.role || 'Student';
     const newUser = {
       id: 'usr-' + Date.now(),
-      fullName: userData.fullName || 'New User',
-      email: userData.email,
-      role: userData.role || 'Student',
+      fullName: userData.fullName || 'User',
+      email: cleanEmail,
+      password: userData.password,
+      role: role,
       department: userData.department || userData.branch || 'CSE',
       branch: userData.branch || userData.department || 'CSE',
-      rollNumber: userData.rollNumber || `2026CSE${Math.floor(100 + Math.random() * 900)}`,
-      officerCode: userData.officerCode || `TPO-HQ-${Math.floor(10 + Math.random() * 90)}`,
+      rollNumber: userData.rollNumber || (role === 'Student' ? `2026CSE${Math.floor(100 + Math.random() * 900)}` : ''),
+      officerCode: userData.officerCode || (role === 'Placement Officer' ? `TPO-HQ-${Math.floor(10 + Math.random() * 90)}` : ''),
       cgpa: parseFloat(userData.cgpa) || 8.5,
-      graduationYear: parseInt(userData.graduationYear) || 2026,
+      graduationYear: parseInt(userData.graduationYear, 10) || 2026,
       avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.fullName || 'User')}&background=ff7849&color=fff`,
-      skills: ['Java', 'React', 'MongoDB', 'Python'],
+      skills: ['Problem Solving', 'Data Structures', 'Communication'],
       verified: true
     };
 
-    if (newUser.role === 'Student') {
+    regUsers.push(newUser);
+    setStored(STORAGE_KEY_REGISTERED_USERS, regUsers);
+
+    if (role === 'Student') {
       state.students = [newUser, ...state.students];
       setStored(STORAGE_KEY_STUDENTS, state.students);
+    } else if (role === 'Placement Officer') {
+      state.officer = newUser;
+    } else if (role === 'Administrator') {
+      state.admin = newUser;
     }
+
     state.currentUser = newUser;
-    state.token = 'demo-jwt-token-' + Date.now();
+    state.token = 'jwt-token-' + Date.now();
     setStored(STORAGE_KEY_USER, state.currentUser);
     localStorage.setItem(STORAGE_KEY_TOKEN, state.token);
     notifyListeners();
     return { success: true, user: newUser };
+  },
+
+  async resetPassword(email, code, newPassword) {
+    if (!email || !newPassword) {
+      throw new Error('Email and new password are required.');
+    }
+    if (newPassword.length < 6) {
+      throw new Error('New password must be at least 6 characters long.');
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const regUsers = getStored(STORAGE_KEY_REGISTERED_USERS, []);
+    const userIdx = regUsers.findIndex(u => u.email?.toLowerCase() === cleanEmail);
+    if (userIdx !== -1) {
+      regUsers[userIdx].password = newPassword;
+      setStored(STORAGE_KEY_REGISTERED_USERS, regUsers);
+      return { success: true, message: 'Password updated successfully.' };
+    }
+    const studentIdx = state.students?.findIndex(s => s.email?.toLowerCase() === cleanEmail);
+    if (studentIdx !== -1 && state.students) {
+      state.students[studentIdx].password = newPassword;
+      setStored(STORAGE_KEY_STUDENTS, state.students);
+      return { success: true, message: 'Password updated successfully.' };
+    }
+    return { success: true, message: 'Password reset completed.' };
   },
 
   logout() {
@@ -609,6 +953,61 @@ export const api = {
     }
 
     notifyListeners();
+  },
+
+  approveStudentVerification(studentId) {
+    const student = state.students.find(s => s.id === studentId);
+    this.verifyStudent(studentId, 'VERIFIED');
+    this.addAuditLog({
+      action: 'STUDENT_ELIGIBILITY_VERIFIED',
+      user: state.currentUser?.email || 'officer@cpms.edu',
+      ip: '192.168.1.104',
+      level: 'INFO',
+      details: `Profile verified & eligibility approved for ${student ? student.fullName : studentId}`
+    });
+    this.addNotification({
+      title: 'Student Profile Approved',
+      message: `${student ? student.fullName : 'Student'} has been verified and cleared for drive applications.`,
+      type: 'status'
+    });
+  },
+
+  rejectStudentVerification(studentId, reason = 'Document verification discrepancy') {
+    const student = state.students.find(s => s.id === studentId);
+    this.verifyStudent(studentId, 'REJECTED');
+    this.addAuditLog({
+      action: 'STUDENT_VERIFICATION_REJECTED',
+      user: state.currentUser?.email || 'officer@cpms.edu',
+      ip: '192.168.1.104',
+      level: 'NOTICE',
+      details: `Verification rejected for ${student ? student.fullName : studentId}: ${reason}`
+    });
+    this.addNotification({
+      title: 'Student Verification Flagged',
+      message: `${student ? student.fullName : 'Student'} was flagged: ${reason}`,
+      type: 'warning'
+    });
+  },
+
+  // Audit Logs (Security & Compliance)
+  getAuditLogs() {
+    return [...state.auditLogs];
+  },
+
+  addAuditLog({ action, user, ip = '127.0.0.1', level = 'INFO', details = '' }) {
+    const newLog = {
+      id: `log_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      action,
+      user: user || state.currentUser?.email || 'system',
+      ip,
+      time: 'Just now',
+      level,
+      details
+    };
+    state.auditLogs = [newLog, ...state.auditLogs];
+    setStored(STORAGE_KEY_AUDIT_LOGS, state.auditLogs);
+    notifyListeners();
+    return newLog;
   },
 
   updatePortfolio(updatedFields) {

@@ -115,8 +115,8 @@ export const INITIAL_OFFICER = {
 export const INITIAL_ADMIN = {
   id: "adm_1",
   userId: "usr_adm_1",
-  fullName: "Dr. Arthur Vance",
-  email: "admin@cpms.edu",
+  fullName: "Administrator",
+  email: "admin@cpms",
   role: "Administrator",
   department: "Dean Office & Institutional Affairs",
   avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80"

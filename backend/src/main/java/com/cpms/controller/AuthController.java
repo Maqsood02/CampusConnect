@@ -18,9 +18,61 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final com.cpms.service.OtpService otpService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, com.cpms.service.OtpService otpService) {
         this.authService = authService;
+        this.otpService = otpService;
+    }
+
+    @PostMapping("/send-otp")
+    public ResponseEntity<?> sendOtp(@RequestBody com.cpms.dto.SendOtpRequest request) {
+        try {
+            if (request.getEmail() == null || request.getEmail().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Email address is required."));
+            }
+            otpService.generateAndSendOtp(request.getEmail(), request.getPurpose());
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Verification code dispatched successfully to " + request.getEmail().trim()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(@RequestBody com.cpms.dto.VerifyOtpRequest request) {
+        try {
+            boolean valid = otpService.verifyOtp(request.getEmail(), request.getOtp(), request.getPurpose());
+            if (valid) {
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "verified", true,
+                        "message", "Email verified successfully."
+                ));
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                        "success", false,
+                        "verified", false,
+                        "message", "Invalid or expired 6-digit OTP code."
+                ));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/reset-password-otp")
+    public ResponseEntity<?> resetPasswordWithOtp(@RequestBody com.cpms.dto.ResetPasswordWithOtpRequest request) {
+        try {
+            authService.resetPasswordWithOtp(request.getEmail(), request.getOtp(), request.getNewPassword());
+            return ResponseEntity.ok(Map.of("success", true, "message", "Password reset successfully. You can now log in."));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("success", false, "message", e.getMessage()));
+        }
     }
 
     @PostMapping("/login")
@@ -44,9 +96,15 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser(@RequestParam(required = false, defaultValue = "student@cpms.edu") String email) {
+    public ResponseEntity<?> getCurrentUser(
+            @RequestParam(required = false) String email,
+            java.security.Principal principal) {
         try {
-            return ResponseEntity.ok(authService.getCurrentUser(email));
+            String targetEmail = (principal != null && principal.getName() != null) ? principal.getName() : email;
+            if (targetEmail == null || targetEmail.isBlank()) {
+                targetEmail = "student@cpms.edu";
+            }
+            return ResponseEntity.ok(authService.getCurrentUser(targetEmail));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }

@@ -23,19 +23,31 @@ public class AuthService {
     private final PlacementOfficerRepository officerRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final OtpService otpService;
+    private final EmailService emailService;
 
     public AuthService(UserRepository userRepository, StudentRepository studentRepository,
                        PlacementOfficerRepository officerRepository, PasswordEncoder passwordEncoder,
                        JwtService jwtService) {
+        this(userRepository, studentRepository, officerRepository, passwordEncoder, jwtService, null, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AuthService(UserRepository userRepository, StudentRepository studentRepository,
+                       PlacementOfficerRepository officerRepository, PasswordEncoder passwordEncoder,
+                       JwtService jwtService, OtpService otpService, EmailService emailService) {
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
         this.officerRepository = officerRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.otpService = otpService;
+        this.emailService = emailService;
     }
 
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        String cleanEmail = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : "";
+        User user = userRepository.findByEmail(cleanEmail)
                 .orElseThrow(() -> new RuntimeException("Invalid email or password."));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
@@ -51,18 +63,26 @@ public class AuthService {
             throw new RuntimeException("Email is already registered.");
         }
 
-        Role role = Role.ROLE_STUDENT;
-        if ("Placement Officer".equalsIgnoreCase(request.getRole())) {
-            role = Role.ROLE_OFFICER;
-        } else if ("Administrator".equalsIgnoreCase(request.getRole())) {
-            role = Role.ROLE_ADMIN;
+        // If an OTP is provided with registration, verify it
+        if (request.getOtp() != null && !request.getOtp().isBlank()) {
+            boolean valid = otpService.verifyOtp(request.getEmail(), request.getOtp(), "REGISTRATION");
+            if (!valid) {
+                throw new RuntimeException("Invalid or expired 6-digit email verification OTP. Please try again.");
+            }
         }
 
+        if ("Placement Officer".equalsIgnoreCase(request.getRole()) || "Administrator".equalsIgnoreCase(request.getRole())) {
+            throw new RuntimeException("Placement Officer and Administrator accounts cannot be self-registered. Officer accounts are provisioned exclusively by Institutional Administrators.");
+        }
+
+        Role role = Role.ROLE_STUDENT;
+
         User user = User.builder()
-                .email(request.getEmail())
+                .email(request.getEmail().trim().toLowerCase())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .role(role)
                 .active(true)
+                .emailVerified(true)
                 .createdAt(Instant.now())
                 .build();
 
@@ -95,8 +115,31 @@ public class AuthService {
             officerRepository.save(officer);
         }
 
+        // Send Welcome Email upon verified account registration
+        try {
+            emailService.sendWelcomeEmail(user.getEmail(), request.getFullName(), request.getRole());
+        } catch (Exception ignored) {}
+
         String token = jwtService.generateToken(user.getEmail(), user.getRole().name());
         return buildAuthResponse(user, token);
+    }
+
+    public void resetPasswordWithOtp(String email, String otp, String newPassword) {
+        boolean valid = otpService.verifyOtp(email, otp, "PASSWORD_RESET");
+        if (!valid) {
+            throw new RuntimeException("Invalid or expired 6-digit verification code.");
+        }
+
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new RuntimeException("New password must be at least 6 characters long.");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Account with email " + email + " not found."));
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setUpdatedAt(Instant.now());
+        userRepository.save(user);
     }
 
     public void changePassword(String email, String currentPassword, String newPassword) {

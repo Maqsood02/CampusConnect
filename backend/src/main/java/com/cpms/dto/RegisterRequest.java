@@ -10,6 +10,7 @@ public class RegisterRequest {
     private String rollNumber;
     private String department;
     private String phone;
+    private String otp;
 
     public RegisterRequest() {}
 
@@ -72,4 +73,6 @@ public class RegisterRequest {
     public void setDepartment(String department) { this.department = department; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+    public String getOtp() { return otp; }
+    public void setOtp(String otp) { this.otp = otp; }
 }

@@ -35,4 +35,18 @@ public class DriveController {
         RecruitmentDrive drive = driveService.createDrive(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(drive);
     }
+
+    @PostMapping("/{id}/notify-eligible")
+    public ResponseEntity<?> notifyEligibleStudents(@PathVariable String id) {
+        try {
+            int count = driveService.notifyEligibleStudentsForDrive(id);
+            return ResponseEntity.ok(java.util.Map.of(
+                    "success", true,
+                    "notifiedCount", count,
+                    "message", "Dispatched eligibility notifications to " + count + " eligible students."
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(java.util.Map.of("success", false, "error", e.getMessage()));
+        }
+    }
 }

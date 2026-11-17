@@ -16,12 +16,12 @@ import {
 
 export default function ResumeBuilderView({ currentUser }) {
   const [resumeData, setResumeData] = useState({
-    fullName: currentUser?.fullName || 'Alex Mercer',
-    email: currentUser?.email || 'alex.mercer@cpms.edu',
-    phone: '+91 98765 43210',
+    fullName: currentUser?.fullName || 'Student Scholar',
+    email: currentUser?.email || 'scholar@university.edu',
+    phone: currentUser?.phone || '+91 98765 43210',
     location: 'Bengaluru, India',
-    github: 'github.com/alexmercer',
-    linkedin: 'linkedin.com/in/alex-mercer',
+    github: currentUser?.fullName ? `github.com/${currentUser.fullName.toLowerCase().replace(/\s+/g, '')}` : 'github.com/scholar',
+    linkedin: currentUser?.fullName ? `linkedin.com/in/${currentUser.fullName.toLowerCase().replace(/\s+/g, '-')}` : 'linkedin.com/in/scholar',
     summary: 'Proactive Computer Science student with expertise in Java, React, and scalable distributed architectures. Proven track record in building full-stack cloud applications and competitive algorithmic problem solving.',
     education: [
       {

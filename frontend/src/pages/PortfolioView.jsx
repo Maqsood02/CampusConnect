@@ -265,8 +265,8 @@ export default function PortfolioView({ student, onUpdateStudent }) {
                 <FileText className="w-6 h-6" />
               </div>
               <div>
-                <p className="font-bold text-white">Alex_Mercer_Placement_Resume.pdf</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Updated: 2 days ago • Verified by Placement Cell</p>
+                <p className="font-bold text-white">{student?.fullName ? `${student.fullName.replace(/\s+/g, '_')}_Placement_Resume.pdf` : 'Institutional_Placement_Resume.pdf'}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Updated: Active • Verified by Placement Cell</p>
               </div>
 
               <div className="flex items-center justify-center gap-2 pt-2">

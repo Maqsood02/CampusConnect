@@ -23,6 +23,8 @@ public class User {
 
     private boolean active = true;
 
+    private boolean emailVerified = true;
+
     private String profileImageUrl;
 
     @CreatedDate
@@ -33,12 +35,13 @@ public class User {
 
     public User() {}
 
-    public User(String id, String email, String passwordHash, Role role, boolean active, String profileImageUrl, Instant createdAt, Instant updatedAt) {
+    public User(String id, String email, String passwordHash, Role role, boolean active, boolean emailVerified, String profileImageUrl, Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.email = email;
         this.passwordHash = passwordHash;
         this.role = role;
         this.active = active;
+        this.emailVerified = emailVerified;
         this.profileImageUrl = profileImageUrl;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -54,6 +57,7 @@ public class User {
         private String passwordHash;
         private Role role;
         private boolean active = true;
+        private boolean emailVerified = true;
         private String profileImageUrl;
         private Instant createdAt;
         private Instant updatedAt;
@@ -63,12 +67,13 @@ public class User {
         public Builder passwordHash(String passwordHash) { this.passwordHash = passwordHash; return this; }
         public Builder role(Role role) { this.role = role; return this; }
         public Builder active(boolean active) { this.active = active; return this; }
+        public Builder emailVerified(boolean emailVerified) { this.emailVerified = emailVerified; return this; }
         public Builder profileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; return this; }
         public Builder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
         public Builder updatedAt(Instant updatedAt) { this.updatedAt = updatedAt; return this; }
 
         public User build() {
-            return new User(id, email, passwordHash, role, active, profileImageUrl, createdAt, updatedAt);
+            return new User(id, email, passwordHash, role, active, emailVerified, profileImageUrl, createdAt, updatedAt);
         }
     }
 
@@ -86,6 +91,9 @@ public class User {
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+
+    public boolean isEmailVerified() { return emailVerified; }
+    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
 
     public String getProfileImageUrl() { return profileImageUrl; }
     public void setProfileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; }

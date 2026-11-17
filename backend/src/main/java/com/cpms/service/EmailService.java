@@ -74,7 +74,7 @@ public class EmailService {
                 <div class="email-wrapper">
                     <div class="email-card">
                         <div class="header-bar">
-                            <div class="brand-badge">🎓 CampusConnect &bull; Smart Placement System</div>
+                            <div class="brand-badge">🎓 CampusConnect &bull; CPMS Institutional Portal</div>
                             <h1 class="header-title">{{TITLE}}</h1>
                         </div>
                         <div class="email-body">
@@ -82,7 +82,7 @@ public class EmailService {
                             {{CTA_HTML}}
                         </div>
                         <div class="footer">
-                            <p style="margin: 0 0 6px 0; font-weight: 700; color: #4338ca;">🎓 CampusConnect &bull; Smart College Placement Management System</p>
+                            <p style="margin: 0 0 6px 0; font-weight: 700; color: #4338ca;">🎓 CampusConnect &bull; Training &amp; Placement Cell</p>
                             <p style="margin: 0;">This is an automated notification sent via CampusConnect verified mailer. &copy; {{YEAR}} All Rights Reserved.</p>
                         </div>
                     </div>
@@ -108,7 +108,7 @@ public class EmailService {
                 }
                 MimeMessage message = mailSender.createMimeMessage();
                 MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-                helper.setFrom(senderEmail);
+                helper.setFrom(new jakarta.mail.internet.InternetAddress(senderEmail, "CampusConnect Placement Portal"));
                 helper.setTo(toAddress);
                 helper.setSubject(subject);
                 helper.setText(htmlContent, true);
@@ -116,28 +116,88 @@ public class EmailService {
                 log.info("[Mailer Success] Email dispatched successfully to {}: '{}'", toAddress, subject);
                 return true;
             } catch (Exception e) {
-                log.warn("[Mailer Fallback] Simulated delivery for {} due to mailer error: {}", toAddress, e.getMessage());
-                return true;
+                log.error("[Mailer Error] Failed to send email to " + toAddress + ": " + e.getMessage(), e);
+                return false;
             }
         }, executor);
     }
 
+    public void sendOtpEmail(String recipientEmail, String otp, String purpose) {
+        String actionText = "REGISTRATION".equalsIgnoreCase(purpose) ? "Account Registration" :
+                ("PASSWORD_RESET".equalsIgnoreCase(purpose) ? "Password Recovery" : "Security Verification");
+        String subject = "🔐 CampusConnect Verification Code: " + otp;
+        String title = "Verify Your CampusConnect Account";
+        String preheader = "Your 6-digit verification code is " + otp + ". Valid for 10 minutes.";
+        String body = """
+            <p>Hello,</p>
+            <p>You have requested an authentication verification code for <strong>{{ACTION}}</strong> on CampusConnect.</p>
+            <div style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border: 1px solid #4338ca; border-radius: 16px; padding: 28px 20px; text-align: center; margin: 28px 0; box-shadow: 0 10px 25px -5px rgba(67, 56, 202, 0.3);">
+                <div style="color: #a5b4fc; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;">One-Time Verification OTP</div>
+                <div style="color: #ffffff; font-size: 38px; font-weight: 900; letter-spacing: 8px; font-family: monospace; text-shadow: 0 2px 10px rgba(0,0,0,0.5);">{{OTP}}</div>
+                <div style="color: #cbd5e1; font-size: 12px; margin-top: 10px;">⏰ Valid for <strong>10 minutes</strong> &bull; Do not share this OTP with anyone.</div>
+            </div>
+            <div class="info-panel">
+                <div class="info-row"><span>Account Email:</span><strong>{{EMAIL}}</strong></div>
+                <div class="info-row"><span>Purpose:</span><span class="badge-status badge-indigo">{{ACTION}}</span></div>
+                <div class="info-row"><span>Security Verification:</span><span class="badge-status badge-success">TLS 1.3 Verified</span></div>
+            </div>
+            <p style="font-size: 13px; color: #64748b;">If you did not request this verification code, please ignore this email or reach out to the campus placement team.</p>
+        """
+            .replace("{{ACTION}}", actionText)
+            .replace("{{OTP}}", otp)
+            .replace("{{EMAIL}}", recipientEmail);
+
+        String html = renderEmailHtml(title, preheader, body, null, null);
+        sendEmailAsync(recipientEmail, subject, html);
+    }
+
+    public void sendDriveEligibilityNotificationEmail(String recipientEmail, String studentName, String jobTitle,
+                                                     String companyName, Double packageLpa, String driveDate,
+                                                     String deadline, Double minCgpa, List<String> allowedBranches) {
+        String branchesStr = (allowedBranches != null && !allowedBranches.isEmpty()) ? String.join(", ", allowedBranches) : "All Branches";
+        String subject = "🎯 You're Eligible! Drive: " + companyName + " - " + jobTitle + " (₹" + packageLpa + " LPA)";
+        String title = "🎯 Eligibility Matched: " + companyName;
+        String preheader = "Great news, " + studentName + "! You qualify for " + jobTitle + " at " + companyName + ".";
+
+        String body = """
+            <p>Dear <strong>%s</strong>,</p>
+            <p>We are pleased to inform you that your academic profile meets the eligibility criteria for the newly announced campus recruitment drive by <strong style="color: #4f46e5;">%s</strong>.</p>
+            <div class="info-panel">
+                <div class="info-row"><span>Company:</span><strong>%s</strong></div>
+                <div class="info-row"><span>Role / Position:</span><strong>%s</strong></div>
+                <div class="info-row"><span>Compensation (CTC):</span><strong style="color: #059669; font-size: 16px;">₹ %.1f LPA</strong></div>
+                <div class="info-row"><span>Drive Date:</span><strong>%s</strong></div>
+                <div class="info-row"><span>Application Deadline:</span><strong style="color: #d97706;">%s</strong></div>
+                <div class="info-row"><span>Required Criteria:</span><strong>CGPA &ge; %.2f (%s)</strong></div>
+                <div class="info-row"><span>Your Match Status:</span><span class="badge-status badge-success">ELIGIBILITY MET ✓</span></div>
+            </div>
+            <p>Please review the job requirements, syllabus, and ensure you submit your application before the deadline.</p>
+        """.formatted(studentName, companyName, companyName, jobTitle, packageLpa != null ? packageLpa : 0.0,
+                driveDate != null ? driveDate : "To be announced",
+                deadline != null ? deadline : "Closing soon",
+                minCgpa != null ? minCgpa : 0.0, branchesStr);
+
+        String html = renderEmailHtml(title, preheader, body, "View Drive & Apply on CampusConnect", frontendUrl);
+        sendEmailAsync(recipientEmail, subject, html);
+    }
+
     public void sendWelcomeEmail(String userEmail, String fullName, String role) {
-        String subject = "Welcome to CPMS - Account Activated (" + role + ")";
+        String subject = "Welcome to CampusConnect - Account Activated (" + role + ")";
         String title = "Welcome, " + fullName + "!";
-        String preheader = "Your CPMS account as " + role + " has been created successfully.";
+        String preheader = "Your CampusConnect account as " + role + " has been verified & created successfully.";
         String body = """
             <p>Hello <strong>%s</strong>,</p>
-            <p>Welcome to the <strong>College Placement Management System (CPMS)</strong>. Your account has been registered and initialized with the role: <strong style="color: #4f46e5;">%s</strong>.</p>
+            <p>Welcome to <strong>CampusConnect - Smart College Placement Management System</strong>. Your institutional account is active with role: <strong style="color: #4f46e5;">%s</strong>.</p>
             <div class="info-panel">
                 <div class="info-row"><span>Account Email:</span><strong>%s</strong></div>
                 <div class="info-row"><span>Assigned Role:</span><strong>%s</strong></div>
+                <div class="info-row"><span>Email Verification:</span><span class="badge-status badge-success">VERIFIED ✓</span></div>
                 <div class="info-row"><span>Status:</span><span class="badge-status badge-success">Active</span></div>
             </div>
-            <p>You can now sign in to your dashboard to complete your profile, explore active recruitment drives, and track your placements.</p>
+            <p>You can now sign in to your dashboard to complete your portfolio, explore eligible recruitment drives, and track your placements.</p>
         """.formatted(fullName, role, userEmail, role);
 
-        String html = renderEmailHtml(title, preheader, body, "Sign In to CPMS Portal", frontendUrl);
+        String html = renderEmailHtml(title, preheader, body, "Sign In to CampusConnect Portal", frontendUrl);
         sendEmailAsync(userEmail, subject, html);
     }
 
@@ -147,7 +207,7 @@ public class EmailService {
         String preheader = "Your application for " + jobTitle + " at " + companyName + " is recorded.";
         String body = """
             <p>Dear <strong>%s</strong>,</p>
-            <p>Your application for the upcoming campus recruitment drive has been successfully submitted and logged into the CPMS registry.</p>
+            <p>Your application for the upcoming campus recruitment drive has been successfully submitted and logged into the CampusConnect registry.</p>
             <div class="info-panel">
                 <div class="info-row"><span>Company:</span><strong>%s</strong></div>
                 <div class="info-row"><span>Role / Position:</span><strong>%s</strong></div>
@@ -163,25 +223,49 @@ public class EmailService {
     }
 
     public void sendApplicationStatusUpdateEmail(String studentEmail, String studentName, String jobTitle, String companyName, String newStatus, String notes) {
-        String subject = "Application Update: " + newStatus + " - " + jobTitle + " (" + companyName + ")";
-        String title = "Application Status: " + newStatus;
-        String preheader = "Update on your application for " + jobTitle + " at " + companyName + ".";
-        String badgeClass = "SELECTED".equalsIgnoreCase(newStatus) ? "badge-success" : ("REJECTED".equalsIgnoreCase(newStatus) ? "badge-amber" : "badge-indigo");
-        String noteHtml = (notes != null && !notes.isBlank()) ? "<p><em>Note from placement cell: " + notes + "</em></p>" : "";
+        String upperStatus = (newStatus != null) ? newStatus.toUpperCase() : "UPDATED";
+        String subject;
+        String title;
+        String badgeClass;
+
+        if ("SELECTED".equals(upperStatus) || "PLACED".equals(upperStatus) || "OFFER_ACCEPTED".equals(upperStatus)) {
+            subject = "🎉 CONGRATULATIONS! Offer Extended for " + jobTitle + " (" + companyName + ")";
+            title = "🎉 Selected for Placement Offer!";
+            badgeClass = "badge-success";
+        } else if ("SHORTLISTED".equals(upperStatus)) {
+            subject = "🎯 Shortlisted: " + jobTitle + " at " + companyName;
+            title = "Application Shortlisted for Next Rounds";
+            badgeClass = "badge-indigo";
+        } else if ("REJECTED".equals(upperStatus)) {
+            subject = "Application Update: " + jobTitle + " (" + companyName + ")";
+            title = "Application Update: Not Shortlisted";
+            badgeClass = "badge-amber";
+        } else if (upperStatus.contains("INTERVIEW") || upperStatus.contains("ROUND")) {
+            subject = "📅 Round Update: " + newStatus + " - " + jobTitle + " (" + companyName + ")";
+            title = "Interview Round Status: " + newStatus;
+            badgeClass = "badge-indigo";
+        } else {
+            subject = "Application Update: " + newStatus + " - " + jobTitle + " (" + companyName + ")";
+            title = "Application Status: " + newStatus;
+            badgeClass = "badge-indigo";
+        }
+
+        String preheader = "Update on your application for " + jobTitle + " at " + companyName + ": " + newStatus + ".";
+        String noteHtml = (notes != null && !notes.isBlank()) ? "<div class=\"info-row\" style=\"display: block;\"><span style=\"color: #64748b; font-size: 13px;\">Placement Cell Notes:</span><p style=\"margin: 4px 0 0 0; font-style: italic; color: #1e293b;\">" + notes + "</p></div>" : "";
 
         String body = """
             <p>Dear <strong>%s</strong>,</p>
-            <p>The recruitment team has updated the evaluation status of your application for <strong>%s</strong> at <strong>%s</strong>.</p>
+            <p>The recruitment team and Training &amp; Placement Cell have updated the evaluation status of your application for <strong>%s</strong> at <strong>%s</strong>.</p>
             <div class="info-panel">
                 <div class="info-row"><span>Company:</span><strong>%s</strong></div>
                 <div class="info-row"><span>Position:</span><strong>%s</strong></div>
-                <div class="info-row"><span>New Status:</span><span class="badge-status %s">%s</span></div>
+                <div class="info-row"><span>New Evaluation Status:</span><span class="badge-status %s">%s</span></div>
+                %s
             </div>
-            %s
-            <p>Log in to your CPMS candidate desk to review additional details and upcoming rounds.</p>
+            <p>Log in to your CampusConnect candidate desk to review additional details, scheduled slots, and upcoming rounds.</p>
         """.formatted(studentName, jobTitle, companyName, companyName, jobTitle, badgeClass, newStatus, noteHtml);
 
-        String html = renderEmailHtml(title, preheader, body, "View Application Details", frontendUrl);
+        String html = renderEmailHtml(title, preheader, body, "View Application Desk", frontendUrl);
         sendEmailAsync(studentEmail, subject, html);
     }
 
@@ -260,6 +344,34 @@ public class EmailService {
         for (String email : recipientEmails) {
             sendEmailAsync(email, subject, html);
         }
+    }
+
+    public void sendOfficerCredentialsEmail(String recipientEmail, String officerName, String tempPassword, String department, String officerCode) {
+        String subject = "👔 Welcome to CampusConnect: Placement Officer Account Provisioned";
+        String title = "Placement Officer Account Provisioned";
+        String preheader = "Welcome " + officerName + ", your TPO portal credentials are ready.";
+
+        String body = """
+            <p>Dear <strong>{{NAME}}</strong>,</p>
+            <p>An official <strong>Placement Officer (TPO)</strong> account has been provisioned for you by the Institutional Administrator on CampusConnect.</p>
+            <div class="info-panel">
+                <div class="info-row"><span>Officer Name:</span><strong>{{NAME}}</strong></div>
+                <div class="info-row"><span>Department:</span><strong>{{DEPT}}</strong></div>
+                <div class="info-row"><span>Officer Code:</span><strong>{{CODE}}</strong></div>
+                <div class="info-row"><span>Login Email:</span><strong style="color: #4f46e5;">{{EMAIL}}</strong></div>
+                <div class="info-row"><span>Assigned Password:</span><strong style="color: #059669; font-family: monospace; font-size: 16px;">{{PWD}}</strong></div>
+                <div class="info-row"><span>Access Level:</span><span class="badge-status badge-indigo">Level 2 &bull; TPO Operations</span></div>
+            </div>
+            <p style="font-size: 13px; color: #64748b;">Please log in at the portal and update your password under account settings for institutional security compliance.</p>
+        """
+            .replace("{{NAME}}", officerName)
+            .replace("{{DEPT}}", department != null ? department : "Training & Placement Cell")
+            .replace("{{CODE}}", officerCode != null ? officerCode : "TPO-HQ-01")
+            .replace("{{EMAIL}}", recipientEmail)
+            .replace("{{PWD}}", tempPassword);
+
+        String html = renderEmailHtml(title, preheader, body, "Access Officer Portal", frontendUrl);
+        sendEmailAsync(recipientEmail, subject, html);
     }
 
     public void sendTestEmail(String recipientEmail, String subject, String customMessage) {

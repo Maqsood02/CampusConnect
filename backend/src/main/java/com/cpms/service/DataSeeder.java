@@ -52,8 +52,36 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (userRepository.count() > 0) {
-            log.info("Database already initialized with users. Skipping seeding.");
+        // Ensure default administrator 'admin@cpms' with password 'Cpms@123456' ALWAYS exists
+        String adminPasswordHash = passwordEncoder.encode("Cpms@123456");
+        userRepository.findByEmail("admin@cpms").ifPresentOrElse(u -> {
+            u.setPasswordHash(adminPasswordHash);
+            u.setRole(Role.ROLE_ADMIN);
+            u.setActive(true);
+            u.setEmailVerified(true);
+            userRepository.save(u);
+            log.info("[DataSeeder] Default administrator 'admin@cpms' verified with password 'Cpms@123456'.");
+        }, () -> {
+            User newAdmin = User.builder()
+                    .email("admin@cpms")
+                    .passwordHash(adminPasswordHash)
+                    .role(Role.ROLE_ADMIN)
+                    .active(true)
+                    .emailVerified(true)
+                    .createdAt(Instant.now())
+                    .build();
+            userRepository.save(newAdmin);
+            log.info("[DataSeeder] Created default administrator 'admin@cpms' with password 'Cpms@123456'.");
+        });
+
+        // Also ensure admin@cpms.edu accepts Cpms@123456
+        userRepository.findByEmail("admin@cpms.edu").ifPresent(u -> {
+            u.setPasswordHash(adminPasswordHash);
+            userRepository.save(u);
+        });
+
+        if (userRepository.count() > 2) {
+            log.info("Database already initialized with demo entities. Skipping remainder of seeding.");
             return;
         }
 
@@ -61,15 +89,17 @@ public class DataSeeder implements CommandLineRunner {
 
         String passwordHash = passwordEncoder.encode("Password123!");
 
-        // 1. Seed Administrator
-        User adminUser = userRepository.save(User.builder()
-                .email("admin@cpms.edu")
-                .passwordHash(passwordHash)
-                .role(Role.ROLE_ADMIN)
-                .active(true)
-                .profileImageUrl("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80")
-                .createdAt(Instant.now())
-                .build());
+        // 1. Seed Administrator (cpms.edu alias)
+        if (!userRepository.existsByEmail("admin@cpms.edu")) {
+            userRepository.save(User.builder()
+                    .email("admin@cpms.edu")
+                    .passwordHash(adminPasswordHash)
+                    .role(Role.ROLE_ADMIN)
+                    .active(true)
+                    .profileImageUrl("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80")
+                    .createdAt(Instant.now())
+                    .build());
+        }
 
         // 2. Seed Placement Officer
         User officerUser = userRepository.save(User.builder()

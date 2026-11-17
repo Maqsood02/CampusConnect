@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, GraduationCap, Lock, Mail, Sparkles } from 'lucide-react';
+import { X, GraduationCap, Lock, Mail } from 'lucide-react';
 import { api } from '../../services/api';
 
 export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
@@ -66,7 +66,7 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
         setResetStep(2);
       } else {
         if (!resetCode || !newResetPassword) throw new Error('Please enter code and new password');
-        await new Promise(r => setTimeout(r, 700));
+        await api.resetPassword(forgotEmail, resetCode, newResetPassword);
         setSuccessMsg('Password updated successfully! You may now sign in.');
         setTimeout(() => {
           setIsForgotPass(false);
@@ -82,15 +82,9 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
     }
   };
 
-  const handleDemoPersona = (roleName) => {
-    const user = api.switchPersona(roleName);
-    onAuthenticated(user);
-    onClose();
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/45 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-[32px] bg-gradient-to-b from-white/[0.14] via-white/[0.06] to-white/[0.03] backdrop-blur-3xl border border-white/30 shadow-[0_30px_90px_rgba(0,0,0,0.7),inset_0_1px_1px_0_rgba(255,255,255,0.45),inset_0_0_0_1px_rgba(255,255,255,0.12)] overflow-hidden m-auto p-6 md:p-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md rounded-3xl bg-[#0b1329] border border-slate-700/80 shadow-[0_30px_90px_rgba(0,0,0,0.95),0_0_40px_rgba(255,120,73,0.12)] overflow-hidden m-auto p-6 md:p-8 ring-1 ring-white/10">
         
         {/* Subtle Ambient Radial Glow Orbs */}
         <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#ff7849]/20 rounded-full blur-3xl pointer-events-none" />
@@ -133,35 +127,6 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
           </div>
         )}
 
-        {/* Quick Demo Logins (only on Sign In view) */}
-        {!isForgotPass && !isRegister && (
-          <div className="mt-5 p-4 rounded-2xl bg-white/[0.06] backdrop-blur-xl border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] relative z-10">
-            <p className="text-[11px] font-semibold text-[#ff7849] mb-2.5 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" /> 1-Click Instant Demo Access:
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => handleDemoPersona('Student')}
-                className="px-2 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 text-cyan-300 text-[11px] font-semibold transition-all shadow-sm cursor-pointer"
-              >
-                🎓 Student
-              </button>
-              <button
-                onClick={() => handleDemoPersona('Placement Officer')}
-                className="px-2 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 text-amber-300 text-[11px] font-semibold transition-all shadow-sm cursor-pointer"
-              >
-                🛡️ Officer
-              </button>
-              <button
-                onClick={() => handleDemoPersona('Administrator')}
-                className="px-2 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 text-purple-300 text-[11px] font-semibold transition-all shadow-sm cursor-pointer"
-              >
-                ⚡ Admin
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* FORGOT PASSWORD FORM */}
         {isForgotPass ? (
           <form onSubmit={handleForgotSubmit} className="mt-5 space-y-4 text-xs relative z-10">
@@ -173,7 +138,7 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
                   <input
                     type="email"
                     required
-                    placeholder="student@cpms.edu"
+                    placeholder="e.g. yourname@university.edu"
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     className="w-full glass-input pl-10 pr-3.5 py-2.5 rounded-xl text-xs"
@@ -190,7 +155,7 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. 849201"
+                    placeholder="Enter 6-digit code"
                     value={resetCode}
                     onChange={(e) => setResetCode(e.target.value)}
                     className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs font-mono"
@@ -234,13 +199,12 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
             
             {isRegister && (
               <>
-                {/* Institutional Student Account Badge */}
                 <div className="p-3 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="w-7 h-7 rounded-lg bg-orange-500/20 flex items-center justify-center text-sm">🎓</span>
                     <div>
                       <div className="text-xs font-bold text-white">Student Scholar Account</div>
-                      <div className="text-[10px] text-orange-200/80">Officer accounts provisioned internally</div>
+                      <div className="text-[10px] text-orange-200/80">Placement portal student account registration</div>
                     </div>
                   </div>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold border border-emerald-500/30">
@@ -253,7 +217,7 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Alex Mercer"
+                    placeholder="e.g. Jane Doe"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs"
@@ -297,7 +261,7 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
                 <input
                   type="email"
                   required
-                  placeholder="student@cpms.edu"
+                  placeholder="e.g. yourname@university.edu"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full glass-input pl-10 pr-3.5 py-2.5 rounded-xl text-xs"
@@ -342,7 +306,7 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
           </form>
         )}
 
-        {/* Bottom Switch Links (Clean text links below form) */}
+        {/* Bottom Switch Links */}
         {!isForgotPass && (
           <div className="mt-5 text-center text-xs text-slate-300 pt-3 border-t border-white/10 relative z-10">
             {isRegister ? (
@@ -358,7 +322,7 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
               </p>
             ) : (
               <p>
-                Don't have a student account?{' '}
+                Don't have an account?{' '}
                 <button
                   type="button"
                   onClick={() => { setIsRegister(true); setError(''); }}

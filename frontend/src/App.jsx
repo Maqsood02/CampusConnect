@@ -249,6 +249,7 @@ export default function App() {
               drives={store.drives}
               applications={store.applications}
               interviews={store.interviews}
+              students={store.students}
               analytics={analytics}
               onNavigate={handleSelectTab}
               onOpenPostDrive={() => setIsPostDriveOpen(true)}
@@ -317,8 +318,8 @@ export default function App() {
           {activeTab === 'admin' && (
             <AdminDeskView
               students={store.students}
-              officer={api.getCurrentUser()?.role === 'Placement Officer' ? store.currentUser : { fullName: 'Prof. Sarah Jenkins', email: 'officer@cpms.edu' }}
-              admin={api.getCurrentUser()?.role === 'Administrator' ? store.currentUser : { fullName: 'Dr. Arthur Vance', email: 'admin@cpms.edu' }}
+              officer={store.currentUser?.role === 'Placement Officer' ? store.currentUser : (store.officer || { fullName: 'Placement Officer', email: 'officer@cpms.edu' })}
+              admin={store.currentUser?.role === 'Administrator' ? store.currentUser : (store.admin || { fullName: 'Administrator', email: 'admin@cpms.edu' })}
             />
           )}
 

@@ -20,15 +20,24 @@ public class InterviewService {
     private final ApplicationRepository applicationRepository;
     private final RecruitmentDriveRepository driveRepository;
     private final NotificationRepository notificationRepository;
+    private final EmailService emailService;
+    private final com.cpms.repository.StudentRepository studentRepository;
+    private final com.cpms.repository.UserRepository userRepository;
 
     public InterviewService(InterviewRepository interviewRepository,
                             ApplicationRepository applicationRepository,
                             RecruitmentDriveRepository driveRepository,
-                            NotificationRepository notificationRepository) {
+                            NotificationRepository notificationRepository,
+                            EmailService emailService,
+                            com.cpms.repository.StudentRepository studentRepository,
+                            com.cpms.repository.UserRepository userRepository) {
         this.interviewRepository = interviewRepository;
         this.applicationRepository = applicationRepository;
         this.driveRepository = driveRepository;
         this.notificationRepository = notificationRepository;
+        this.emailService = emailService;
+        this.studentRepository = studentRepository;
+        this.userRepository = userRepository;
     }
 
     public List<Interview> getAllInterviews() {
@@ -93,6 +102,21 @@ public class InterviewService {
                 .createdAt(Instant.now())
                 .build());
 
+        // Dispatch email notification to student
+        String studentEmail = resolveStudentEmail(app, interview.getStudentId());
+        if (studentEmail != null && !studentEmail.isBlank()) {
+            emailService.sendInterviewScheduledEmail(
+                    studentEmail,
+                    candidate,
+                    title,
+                    company,
+                    interview.getRoundName(),
+                    interview.getScheduledTime(),
+                    interview.getLocationOrLink(),
+                    interview.getLocationOrLink()
+            );
+        }
+
         return interview;
     }
 
@@ -106,10 +130,11 @@ public class InterviewService {
         interview.setStatus("COMPLETED");
 
         interview = interviewRepository.save(interview);
+        Application app = null;
 
         // If interview is linked to an application, update application stage based on verdict
         if (interview.getApplicationId() != null) {
-            Application app = applicationRepository.findById(interview.getApplicationId()).orElse(null);
+            app = applicationRepository.findById(interview.getApplicationId()).orElse(null);
             if (app != null) {
                 if ("OFFERED".equalsIgnoreCase(verdict) || "SELECTED".equalsIgnoreCase(verdict)) {
                     app.setStatus("SELECTED");
@@ -143,7 +168,41 @@ public class InterviewService {
                 .createdAt(Instant.now())
                 .build());
 
+        // Dispatch status update email based on evaluation outcome
+        String studentEmail = resolveStudentEmail(app, interview.getStudentId());
+        if (studentEmail != null && !studentEmail.isBlank()) {
+            if ("OFFERED".equalsIgnoreCase(verdict) || "SELECTED".equalsIgnoreCase(verdict)) {
+                Double pkg = app != null ? app.getPackageLpa() : null;
+                emailService.sendPlacementOfferEmail(studentEmail, interview.getCandidateName(), interview.getJobTitle(), interview.getCompanyName(), pkg);
+            } else if ("REJECTED".equalsIgnoreCase(verdict)) {
+                emailService.sendApplicationStatusUpdateEmail(studentEmail, interview.getCandidateName(), interview.getJobTitle(), interview.getCompanyName(), "REJECTED", feedbackNotes);
+            } else {
+                emailService.sendApplicationStatusUpdateEmail(studentEmail, interview.getCandidateName(), interview.getJobTitle(), interview.getCompanyName(), "ROUND CLEARED: " + verdict, feedbackNotes);
+            }
+        }
+
         return interview;
+    }
+
+    private String resolveStudentEmail(Application app, String studentId) {
+        if (app != null && app.getStudentEmail() != null && !app.getStudentEmail().isBlank()) {
+            return app.getStudentEmail();
+        }
+        if (studentId != null) {
+            var stud = studentRepository.findById(studentId);
+            if (stud.isPresent() && stud.get().getEmail() != null) {
+                return stud.get().getEmail();
+            }
+            var user = userRepository.findById(studentId);
+            if (user.isPresent() && user.get().getEmail() != null) {
+                return user.get().getEmail();
+            }
+            var studByUser = studentRepository.findByUserId(studentId);
+            if (studByUser.isPresent() && studByUser.get().getEmail() != null) {
+                return studByUser.get().getEmail();
+            }
+        }
+        return null;
     }
 
     public Interview updateStatus(String interviewId, String status, String remarks) {

@@ -23,15 +23,20 @@ public class ApplicationService {
     private final StudentRepository studentRepository;
     private final NotificationRepository notificationRepository;
     private final DriveService driveService;
+    private final EmailService emailService;
+    private final com.cpms.repository.UserRepository userRepository;
 
     public ApplicationService(ApplicationRepository applicationRepository, RecruitmentDriveRepository driveRepository,
                               StudentRepository studentRepository, NotificationRepository notificationRepository,
-                              DriveService driveService) {
+                              DriveService driveService, EmailService emailService,
+                              com.cpms.repository.UserRepository userRepository) {
         this.applicationRepository = applicationRepository;
         this.driveRepository = driveRepository;
         this.studentRepository = studentRepository;
         this.notificationRepository = notificationRepository;
         this.driveService = driveService;
+        this.emailService = emailService;
+        this.userRepository = userRepository;
     }
 
     public List<Application> getAllApplications() {
@@ -63,6 +68,11 @@ public class ApplicationService {
             throw new RuntimeException("Ineligible: " + String.join(", ", (List<String>) eval.get("reasons")));
         }
 
+        String studentEmail = student.getEmail();
+        if ((studentEmail == null || studentEmail.isBlank()) && student.getUserId() != null) {
+            studentEmail = userRepository.findById(student.getUserId()).map(com.cpms.model.User::getEmail).orElse(null);
+        }
+
         List<Application.StageEvent> history = new ArrayList<>();
         history.add(new Application.StageEvent("APPLIED", Instant.now().toString(), "Application submitted successfully and passed automated criteria check."));
 
@@ -70,6 +80,7 @@ public class ApplicationService {
                 .driveId(drive.getId())
                 .studentId(student.getId())
                 .studentName(student.getFullName())
+                .studentEmail(studentEmail)
                 .rollNumber(student.getRollNumber())
                 .branch(student.getBranch())
                 .cgpa(student.getCgpa())
@@ -94,6 +105,18 @@ public class ApplicationService {
                 .createdAt(Instant.now())
                 .build());
 
+        // Dispatch Application Confirmation Email
+        if (studentEmail != null && !studentEmail.isBlank()) {
+            emailService.sendApplicationSubmittedEmail(
+                    studentEmail,
+                    student.getFullName(),
+                    drive.getJobTitle(),
+                    drive.getCompanyName(),
+                    drive.getPackageLpa(),
+                    drive.getDriveDate()
+            );
+        }
+
         return application;
     }
 
@@ -117,7 +140,7 @@ public class ApplicationService {
 
         app = applicationRepository.save(app);
 
-        // Alert student
+        // Alert student via in-app notification
         notificationRepository.save(Notification.builder()
                 .userId(app.getStudentId())
                 .title("Application Status: " + status)
@@ -125,6 +148,23 @@ public class ApplicationService {
                 .type(status.equals("SELECTED") ? "placement" : "status")
                 .createdAt(Instant.now())
                 .build());
+
+        // Dispatch Email for each and every status update
+        String targetEmail = resolveStudentEmail(app);
+        if (targetEmail != null && !targetEmail.isBlank()) {
+            if ("SELECTED".equalsIgnoreCase(status)) {
+                emailService.sendPlacementOfferEmail(targetEmail, app.getStudentName(), app.getJobTitle(), app.getCompanyName(), app.getPackageLpa());
+            } else {
+                emailService.sendApplicationStatusUpdateEmail(
+                        targetEmail,
+                        app.getStudentName(),
+                        app.getJobTitle(),
+                        app.getCompanyName(),
+                        status,
+                        feedback
+                );
+            }
+        }
 
         return app;
     }
@@ -146,7 +186,8 @@ public class ApplicationService {
                         Instant.now().toString(),
                         "Candidate shortlisted in batch review."
                 ));
-                shortlisted.add(applicationRepository.save(app));
+                Application saved = applicationRepository.save(app);
+                shortlisted.add(saved);
 
                 notificationRepository.save(Notification.builder()
                         .userId(app.getStudentId())
@@ -155,6 +196,19 @@ public class ApplicationService {
                         .type("status")
                         .createdAt(Instant.now())
                         .build());
+
+                // Dispatch Email notification
+                String targetEmail = resolveStudentEmail(app);
+                if (targetEmail != null && !targetEmail.isBlank()) {
+                    emailService.sendApplicationStatusUpdateEmail(
+                            targetEmail,
+                            app.getStudentName(),
+                            app.getJobTitle(),
+                            app.getCompanyName(),
+                            "SHORTLISTED",
+                            "Congratulations! Your application has been shortlisted for the upcoming interview and technical assessment rounds."
+                    );
+                }
             }
         }
 
@@ -182,6 +236,46 @@ public class ApplicationService {
         }
         app.getStageHistory().add(new Application.StageEvent(stage, Instant.now().toString(), notes));
 
-        return applicationRepository.save(app);
+        Application saved = applicationRepository.save(app);
+
+        // Dispatch Email for stage progression
+        String targetEmail = resolveStudentEmail(app);
+        if (targetEmail != null && !targetEmail.isBlank()) {
+            if ("SELECTED".equalsIgnoreCase(stage)) {
+                emailService.sendPlacementOfferEmail(targetEmail, app.getStudentName(), app.getJobTitle(), app.getCompanyName(), app.getPackageLpa());
+            } else {
+                emailService.sendApplicationStatusUpdateEmail(
+                        targetEmail,
+                        app.getStudentName(),
+                        app.getJobTitle(),
+                        app.getCompanyName(),
+                        stage,
+                        notes
+                );
+            }
+        }
+
+        return saved;
+    }
+
+    private String resolveStudentEmail(Application app) {
+        if (app.getStudentEmail() != null && !app.getStudentEmail().isBlank()) {
+            return app.getStudentEmail();
+        }
+        if (app.getStudentId() != null) {
+            var studOpt = studentRepository.findById(app.getStudentId());
+            if (studOpt.isPresent() && studOpt.get().getEmail() != null) {
+                return studOpt.get().getEmail();
+            }
+            var userOpt = userRepository.findById(app.getStudentId());
+            if (userOpt.isPresent() && userOpt.get().getEmail() != null) {
+                return userOpt.get().getEmail();
+            }
+            var studByUser = studentRepository.findByUserId(app.getStudentId());
+            if (studByUser.isPresent() && studByUser.get().getEmail() != null) {
+                return studByUser.get().getEmail();
+            }
+        }
+        return null;
     }
 }

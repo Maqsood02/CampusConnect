@@ -9,7 +9,8 @@ import {
   Calendar,
   Sparkles,
   ArrowUpRight,
-  Plus
+  Plus,
+  Mail
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -22,6 +23,21 @@ export default function JobBoardView({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('ALL');
   const [minCtc, setMinCtc] = useState(0);
+  const [notifyingDriveId, setNotifyingDriveId] = useState(null);
+  const [notifySuccess, setNotifySuccess] = useState('');
+
+  const handleNotifyEligible = async (driveId, companyName) => {
+    try {
+      setNotifyingDriveId(driveId);
+      const res = await api.notifyEligibleStudents(driveId);
+      setNotifySuccess(res.message || `Dispatched eligibility email notifications for ${companyName} via cpms.ac.in@gmail.com!`);
+      setTimeout(() => setNotifySuccess(''), 4500);
+    } catch (err) {
+      alert(err.message || 'Failed to dispatch eligibility notifications.');
+    } finally {
+      setNotifyingDriveId(null);
+    }
+  };
 
   const branches = ['ALL', 'CSE', 'ECE', 'MECH', 'EEE'];
 
@@ -74,6 +90,13 @@ export default function JobBoardView({
           </button>
         )}
       </div>
+
+      {notifySuccess && (
+        <div className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{notifySuccess}</span>
+        </div>
+      )}
 
       {/* Filter & Search Bar */}
       <div className="p-4 rounded-[24px] glass-inner-card border border-white/10 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
@@ -221,9 +244,14 @@ export default function JobBoardView({
                   {currentUser?.role === 'Student' && (
                     <div className="mt-3">
                       {eligible ? (
-                        <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Eligible to Apply</span>
+                        <div className="flex items-center justify-between text-xs text-emerald-400 font-semibold">
+                          <div className="flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Eligible to Apply</span>
+                          </div>
+                          <span className="text-[10px] text-cyan-300 bg-cyan-950/40 px-2 py-0.5 rounded-full border border-cyan-500/30 flex items-center gap-1">
+                            <Mail className="w-3 h-3 text-cyan-400" /> Mail Alert Sent
+                          </span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1.5 text-xs text-rose-400 font-semibold" title={reasons.join(' | ')}>
@@ -245,12 +273,26 @@ export default function JobBoardView({
                     </span>
                   </div>
 
-                  <button
-                    onClick={() => onSelectDriveForApply(drive)}
-                    className="px-4 py-2 rounded-xl btn-orange-glow text-xs font-bold shadow-md cursor-pointer"
-                  >
-                    {currentUser?.role === 'Student' ? 'Apply Now' : 'Inspect Drive Details'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {(currentUser?.role === 'Placement Officer' || currentUser?.role === 'Administrator') && (
+                      <button
+                        onClick={() => handleNotifyEligible(drive.id, drive.companyName)}
+                        disabled={notifyingDriveId === drive.id}
+                        className="px-3 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        title="Send email notification to all students matching this drive's eligibility criteria"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        <span>{notifyingDriveId === drive.id ? 'Sending...' : 'Notify Eligible'}</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => onSelectDriveForApply(drive)}
+                      className="px-4 py-2 rounded-xl btn-orange-glow text-xs font-bold shadow-md cursor-pointer"
+                    >
+                      {currentUser?.role === 'Student' ? 'Apply Now' : 'Inspect Drive Details'}
+                    </button>
+                  </div>
                 </div>
 
               </div>

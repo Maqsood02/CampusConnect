@@ -35,6 +35,7 @@ public class StudentController {
     }
 
     @PutMapping("/{id}/verify")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OFFICER', 'ADMIN')")
     public ResponseEntity<Student> verifyStudent(
             @PathVariable String id,
             @RequestBody Map<String, String> body) {

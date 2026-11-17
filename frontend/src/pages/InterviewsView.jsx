@@ -252,28 +252,28 @@ export default function InterviewsView({ interviews = [], currentUser, onOpenSch
 
       {/* Evaluation Modal */}
       {selectedInterviewForEval && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xl animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md rounded-[32px] bg-gradient-to-b from-white/[0.16] via-white/[0.07] to-white/[0.03] backdrop-blur-3xl border border-white/30 shadow-[0_30px_90px_rgba(0,0,0,0.7),inset_0_1px_2px_0_rgba(255,255,255,0.5),inset_0_0_0_1px_rgba(255,255,255,0.12)] p-6 sm:p-7 space-y-4 overflow-hidden m-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md rounded-3xl bg-[#0b1329] border border-slate-700/80 shadow-[0_30px_90px_rgba(0,0,0,0.95),0_0_40px_rgba(245,158,11,0.12)] p-6 sm:p-7 space-y-4 overflow-hidden m-auto ring-1 ring-white/10">
             
             {/* Glowing Ambient Radial Glow Orbs */}
-            <div className="absolute -top-20 -right-20 w-56 h-56 bg-amber-500/25 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-56 h-56 bg-[#ff7849]/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -top-20 -right-20 w-56 h-56 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-56 h-56 bg-[#ff7849]/10 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="flex items-center justify-between pb-3 border-b border-white/15 relative z-10">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-800 relative z-10">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-2xl bg-gradient-to-br from-amber-500/35 to-orange-500/20 text-amber-300 border border-amber-400/40 shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+                <div className="p-2 rounded-2xl bg-amber-500/15 text-amber-300 border border-amber-400/30 shadow-[0_0_15px_rgba(245,158,11,0.25)]">
                   <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
                 </div>
                 <div>
                   <h3 className="text-base font-bold font-heading text-white">
                     Panel Evaluation &amp; Verdict
                   </h3>
-                  <p className="text-xs text-slate-300">{selectedInterviewForEval.candidateName} • {selectedInterviewForEval.companyName}</p>
+                  <p className="text-xs text-slate-400">{selectedInterviewForEval.candidateName} • {selectedInterviewForEval.companyName}</p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedInterviewForEval(null)}
-                className="p-1.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors border border-transparent hover:border-white/10 cursor-pointer"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-700 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>

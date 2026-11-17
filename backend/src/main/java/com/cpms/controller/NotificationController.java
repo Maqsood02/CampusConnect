@@ -14,9 +14,11 @@ import java.util.Map;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final com.cpms.service.EmailService emailService;
 
-    public NotificationController(NotificationService notificationService) {
+    public NotificationController(NotificationService notificationService, com.cpms.service.EmailService emailService) {
         this.notificationService = notificationService;
+        this.emailService = emailService;
     }
 
     @GetMapping
@@ -31,5 +33,19 @@ public class NotificationController {
     public ResponseEntity<Map<String, String>> markAllRead() {
         notificationService.markAllRead();
         return ResponseEntity.ok(Map.of("message", "All notifications marked as read"));
+    }
+
+    @PostMapping("/test-email")
+    public ResponseEntity<Map<String, Object>> sendTestEmail(@RequestBody Map<String, String> body) {
+        String to = body.getOrDefault("to", "cpms.ac.in@gmail.com");
+        String subject = body.getOrDefault("subject", "CampusConnect Live Mailer Verification");
+        String message = body.getOrDefault("message", "Live test email from CampusConnect Placement System.");
+
+        emailService.sendTestEmail(to, subject, message);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "recipient", to,
+                "message", "Test email queued for delivery via Gmail SMTP to " + to
+        ));
     }
 }

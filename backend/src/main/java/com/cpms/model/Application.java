@@ -19,6 +19,7 @@ public class Application {
     private String driveId;
     private String studentId;
     private String studentName;
+    private String studentEmail;
     private String rollNumber;
     private String branch;
     private Double cgpa;
@@ -71,6 +72,7 @@ public class Application {
         private String driveId;
         private String studentId;
         private String studentName;
+        private String studentEmail;
         private String rollNumber;
         private String branch;
         private Double cgpa;
@@ -88,6 +90,7 @@ public class Application {
         public Builder driveId(String driveId) { this.driveId = driveId; return this; }
         public Builder studentId(String studentId) { this.studentId = studentId; return this; }
         public Builder studentName(String studentName) { this.studentName = studentName; return this; }
+        public Builder studentEmail(String studentEmail) { this.studentEmail = studentEmail; return this; }
         public Builder rollNumber(String rollNumber) { this.rollNumber = rollNumber; return this; }
         public Builder branch(String branch) { this.branch = branch; return this; }
         public Builder cgpa(Double cgpa) { this.cgpa = cgpa; return this; }
@@ -102,8 +105,10 @@ public class Application {
         public Builder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
 
         public Application build() {
-            return new Application(id, driveId, studentId, studentName, rollNumber, branch, cgpa, jobTitle,
+            Application app = new Application(id, driveId, studentId, studentName, rollNumber, branch, cgpa, jobTitle,
                     companyName, packageLpa, applicationDate, status, stage, feedback, stageHistory, createdAt);
+            app.setStudentEmail(studentEmail);
+            return app;
         }
     }
 
@@ -113,6 +118,7 @@ public class Application {
         private String notes;
 
         public StageEvent() {}
+
         public StageEvent(String stage, String timestamp, String notes) {
             this.stage = stage;
             this.timestamp = timestamp;
@@ -135,6 +141,8 @@ public class Application {
     public void setStudentId(String studentId) { this.studentId = studentId; }
     public String getStudentName() { return studentName; }
     public void setStudentName(String studentName) { this.studentName = studentName; }
+    public String getStudentEmail() { return studentEmail; }
+    public void setStudentEmail(String studentEmail) { this.studentEmail = studentEmail; }
     public String getRollNumber() { return rollNumber; }
     public void setRollNumber(String rollNumber) { this.rollNumber = rollNumber; }
     public String getBranch() { return branch; }

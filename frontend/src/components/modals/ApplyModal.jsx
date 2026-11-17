@@ -20,7 +20,7 @@ export default function ApplyModal({ isOpen, onClose, drive, student, onApplied 
   const [error, setError] = useState('');
   
   // Auto-Selected Resume from student profile
-  const defaultResume = `${student?.fullName ? student.fullName.replace(/\s+/g, '_') : 'Alex_Mercer'}_Verified_Resume_2026.pdf`;
+  const defaultResume = `${student?.fullName ? student.fullName.replace(/\s+/g, '_') : 'Student'}_Verified_Resume_2026.pdf`;
   const [selectedResume, setSelectedResume] = useState(defaultResume);
   const [isCustomUploaded, setIsCustomUploaded] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -58,8 +58,8 @@ export default function ApplyModal({ isOpen, onClose, drive, student, onApplied 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/45 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg max-h-[92vh] flex flex-col rounded-[32px] bg-gradient-to-b from-white/[0.14] via-white/[0.06] to-white/[0.03] backdrop-blur-3xl border border-white/30 shadow-[0_30px_90px_rgba(0,0,0,0.7),inset_0_1px_1px_0_rgba(255,255,255,0.45),inset_0_0_0_1px_rgba(255,255,255,0.12)] overflow-hidden m-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg max-h-[92vh] flex flex-col rounded-3xl bg-[#0b1329] border border-slate-700/80 shadow-[0_30px_90px_rgba(0,0,0,0.95),0_0_40px_rgba(255,120,73,0.12)] overflow-hidden m-auto ring-1 ring-white/10">
         
         {/* Subtle Ambient Radial Glow Orbs inside Modal */}
         <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#ff7849]/20 rounded-full blur-3xl pointer-events-none" />
@@ -203,12 +203,12 @@ export default function ApplyModal({ isOpen, onClose, drive, student, onApplied 
                 <div className="flex items-center justify-between border-b border-white/15 pb-1.5">
                   <span className="font-bold text-white flex items-center gap-1.5 text-[11px]">
                     <FileCheck className="w-3.5 h-3.5 text-cyan-400" />
-                    Portfolio Resume: {student?.fullName || 'Alex Mercer'}
+                    Portfolio Resume: {student?.fullName || 'Student Scholar'}
                   </span>
                   <span className="text-[10px] text-emerald-400 font-mono font-semibold">TPO Verified</span>
                 </div>
                 <div className="text-[11px] text-slate-200 space-y-1">
-                  <p><strong className="text-white">Education:</strong> B.Tech in {student?.branch || 'CSE'} ({student?.graduationYear || 2026} Batch) • CGPA: {student?.cgpa || 9.15}/10</p>
+                  <p><strong className="text-white">Education:</strong> B.Tech in {student?.branch || 'CSE'} ({student?.graduationYear || 2026} Batch) • CGPA: {student?.cgpa || 8.5}/10</p>
                   <p><strong className="text-white">Technical Skills:</strong> Python, React.js, Java & Spring Boot, MongoDB, Docker, Cloud</p>
                   <p><strong className="text-white">Projects:</strong> Distributed Placement Management Portal, AI Resume Ranker</p>
                   <p><strong className="text-white">Internship:</strong> Software Engineering Intern at TechCorp Solutions (Summer 2025)</p>
@@ -219,9 +219,9 @@ export default function ApplyModal({ isOpen, onClose, drive, student, onApplied 
             {/* Student Credentials Summary */}
             <div className="pt-2 border-t border-white/15 flex justify-between items-center text-xs">
               <span className="text-slate-300 font-medium">
-                Applicant: <strong className="text-white">{student?.fullName || 'Alex Mercer'}</strong> ({student?.rollNumber || '2022CSE042'})
+                Applicant: <strong className="text-white">{student?.fullName || 'Student Scholar'}</strong> ({student?.rollNumber || 'Active Student'})
               </span>
-              <span className="text-cyan-300 font-mono font-bold">CGPA: {student?.cgpa || 9.15}</span>
+              <span className="text-cyan-300 font-mono font-bold">CGPA: {student?.cgpa || 8.5}</span>
             </div>
 
           </div>

@@ -969,15 +969,15 @@ export default function OfficerDeskView({
 
           {/* Manual Question Upload Modal */}
           {showUploadModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xl animate-in fade-in duration-200">
-              <div className="relative w-full max-w-lg max-h-[92vh] flex flex-col rounded-[32px] bg-gradient-to-b from-white/[0.16] via-white/[0.07] to-white/[0.03] backdrop-blur-3xl border border-white/30 shadow-[0_30px_90px_rgba(0,0,0,0.7),inset_0_1px_2px_0_rgba(255,255,255,0.5),inset_0_0_0_1px_rgba(255,255,255,0.12)] overflow-hidden m-auto">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+              <div className="relative w-full max-w-lg max-h-[92vh] flex flex-col rounded-3xl bg-[#0b1329] border border-slate-700/80 shadow-[0_30px_90px_rgba(0,0,0,0.95),0_0_40px_rgba(255,120,73,0.12)] overflow-hidden m-auto ring-1 ring-white/10">
                 
                 {/* Glowing Ambient Radial Orbs */}
-                <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#ff7849]/25 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#ff7849]/15 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4.5 border-b border-white/15 bg-white/[0.04] backdrop-blur-xl shrink-0">
+                <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-800 bg-slate-900/90 backdrop-blur-md shrink-0 relative z-10">
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 rounded-2xl bg-gradient-to-br from-[#ff7849]/35 to-[#f97316]/20 text-[#ff7849] border border-[#ff7849]/40 shadow-[0_0_16px_rgba(255,120,73,0.35)]">
                       <BookOpen className="w-5 h-5" />

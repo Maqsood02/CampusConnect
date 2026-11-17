@@ -31,7 +31,7 @@ export default function PersonaSwitcher({ currentRole, onSwitchRole, isLiveBacke
             }`}
           >
             <UserCheck className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Student (Alex)</span>
+            <span>Student</span>
           </button>
 
           {/* Placement Officer Persona */}
@@ -45,7 +45,7 @@ export default function PersonaSwitcher({ currentRole, onSwitchRole, isLiveBacke
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-            <span>Placement Officer (Sarah)</span>
+            <span>Placement Officer</span>
           </button>
 
           {/* Admin Persona */}
@@ -59,7 +59,7 @@ export default function PersonaSwitcher({ currentRole, onSwitchRole, isLiveBacke
             }`}
           >
             <ShieldAlert className="w-3.5 h-3.5 text-purple-400" />
-            <span>Administrator (Arthur)</span>
+            <span>Administrator</span>
           </button>
 
           {/* Backend Status indicator */}

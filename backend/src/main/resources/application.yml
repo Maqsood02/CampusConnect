@@ -6,8 +6,23 @@ spring:
     name: cpms-backend
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27017/cpms}
+      uri: ${MONGODB_URI:mongodb+srv://cpmsacin_db_user:1o1WHTUUi6aYGe07@cluster0.pze6ply.mongodb.net/cpms?retryWrites=true&w=majority&appName=Cluster0}
       auto-index-creation: true
+  mail:
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:cpms.ac.in@gmail.com}
+    password: ${SPRING_MAIL_PASSWORD:hryjkjrwitfwuwmg}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 30000
+          timeout: 30000
+          writetimeout: 30000
 
 jwt:
   secret: cpmsSuperSecretKeyForJWTTokensLongEnoughToSatisfyHMACSHA256Requirements2026!

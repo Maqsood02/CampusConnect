@@ -13,7 +13,8 @@ import {
   ChevronUp,
   ExternalLink,
   Check,
-  FileText
+  FileText,
+  Mail
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -85,6 +86,12 @@ export default function ApplicationsView({ applications = [], currentUser }) {
           <p className="text-xs text-slate-300/80 mt-1">
             Real-time status tracking across online assessments, shortlists, interview rounds, and official placement offers.
           </p>
+          <div className="mt-2.5 flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-300 text-[11px] font-semibold border border-cyan-500/30">
+              <Mail className="w-3.5 h-3.5 text-cyan-400" />
+              Verified Mailer Active: Instant updates dispatched to registered email on each status change
+            </span>
+          </div>
         </div>
 
         {/* Filter Badges */}

@@ -19,10 +19,25 @@ public class DriveService {
 
     private final RecruitmentDriveRepository driveRepository;
     private final NotificationRepository notificationRepository;
+    private final com.cpms.repository.StudentRepository studentRepository;
+    private final com.cpms.repository.UserRepository userRepository;
+    private final EmailService emailService;
 
     public DriveService(RecruitmentDriveRepository driveRepository, NotificationRepository notificationRepository) {
+        this(driveRepository, notificationRepository, null, null, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public DriveService(RecruitmentDriveRepository driveRepository,
+                        NotificationRepository notificationRepository,
+                        com.cpms.repository.StudentRepository studentRepository,
+                        com.cpms.repository.UserRepository userRepository,
+                        EmailService emailService) {
         this.driveRepository = driveRepository;
         this.notificationRepository = notificationRepository;
+        this.studentRepository = studentRepository;
+        this.userRepository = userRepository;
+        this.emailService = emailService;
     }
 
     public List<RecruitmentDrive> getAllDrives() {
@@ -73,7 +88,56 @@ public class DriveService {
                 .createdAt(Instant.now())
                 .build());
 
+        // Automatically identify and dispatch eligibility emails to all registered students meeting the criteria
+        notifyEligibleStudentsForDrive(drive);
+
         return drive;
+    }
+
+    public int notifyEligibleStudentsForDrive(String driveId) {
+        RecruitmentDrive drive = getDriveById(driveId);
+        return notifyEligibleStudentsForDrive(drive);
+    }
+
+    private int notifyEligibleStudentsForDrive(RecruitmentDrive drive) {
+        if (studentRepository == null || emailService == null) return 0;
+        List<Student> students = studentRepository.findAll();
+        int notifiedCount = 0;
+
+        for (Student student : students) {
+            var eval = evaluateEligibility(student, drive);
+            if (Boolean.TRUE.equals(eval.get("eligible"))) {
+                String targetEmail = student.getEmail();
+                if ((targetEmail == null || targetEmail.isBlank()) && student.getUserId() != null) {
+                    targetEmail = userRepository.findById(student.getUserId()).map(com.cpms.model.User::getEmail).orElse(null);
+                }
+
+                if (targetEmail != null && !targetEmail.isBlank()) {
+                    emailService.sendDriveEligibilityNotificationEmail(
+                            targetEmail,
+                            student.getFullName() != null ? student.getFullName() : "Candidate",
+                            drive.getJobTitle(),
+                            drive.getCompanyName(),
+                            drive.getPackageLpa(),
+                            drive.getDriveDate(),
+                            drive.getDeadline(),
+                            drive.getCriteria() != null ? drive.getCriteria().getMinCgpa() : 0.0,
+                            drive.getCriteria() != null ? drive.getCriteria().getAllowedBranches() : List.of()
+                    );
+
+                    notificationRepository.save(Notification.builder()
+                            .userId(student.getUserId() != null ? student.getUserId() : student.getId())
+                            .title("🎯 Eligible for " + drive.getCompanyName())
+                            .message("Your credentials match criteria for " + drive.getJobTitle() + " (₹" + drive.getPackageLpa() + " LPA)")
+                            .type("eligibility")
+                            .createdAt(Instant.now())
+                            .build());
+
+                    notifiedCount++;
+                }
+            }
+        }
+        return notifiedCount;
     }
 
     public Map<String, Object> evaluateEligibility(Student student, RecruitmentDrive drive) {

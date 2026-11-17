@@ -75,6 +75,13 @@
 			<optional>true</optional>
 		</dependency>
 
+		<!-- In-Memory Embedded Mongo Server for bulletproof resilience and offline failover -->
+		<dependency>
+			<groupId>de.bwaldvogel</groupId>
+			<artifactId>mongo-java-server</artifactId>
+			<version>1.45.0</version>
+		</dependency>
+
 		<!-- Testing -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
