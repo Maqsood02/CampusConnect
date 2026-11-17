@@ -361,7 +361,7 @@ export default function AuthView({ onAuthenticated }) {
                 </span>
                 <span className="text-[10px] text-slate-400">Institutional Access</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -386,7 +386,7 @@ export default function AuthView({ onAuthenticated }) {
                     setEmail('officer@cpms.edu');
                     setPassword('Cpms@123456');
                     setError('');
-                    setSuccessMsg('Default Officer credentials filled. Click "Sign In" below.');
+                    setSuccessMsg('Default Officer credentials filled (officer@cpms.edu / Cpms@123456). Click "Sign In" below.');
                   }}
                   className="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-left transition-all cursor-pointer group"
                 >
@@ -395,6 +395,24 @@ export default function AuthView({ onAuthenticated }) {
                     <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/20 rounded font-semibold text-amber-200">Auto-fill</span>
                   </div>
                   <div className="text-[10px] text-slate-300 font-mono mt-1 truncate">officer@cpms.edu</div>
+                  <div className="text-[9px] text-slate-400 font-mono">Cpms@123456</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('student@cpms.edu');
+                    setPassword('Cpms@123456');
+                    setError('');
+                    setSuccessMsg('Default Student credentials filled (student@cpms.edu / Cpms@123456). Click "Sign In" below.');
+                  }}
+                  className="p-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-left transition-all cursor-pointer group"
+                >
+                  <div className="text-[11px] font-bold text-cyan-300 group-hover:text-cyan-200 flex items-center justify-between">
+                    <span>🎓 Student</span>
+                    <span className="text-[9px] px-1.5 py-0.5 bg-cyan-500/20 rounded font-semibold text-cyan-200">Auto-fill</span>
+                  </div>
+                  <div className="text-[10px] text-slate-300 font-mono mt-1 truncate">student@cpms.edu</div>
                   <div className="text-[9px] text-slate-400 font-mono">Cpms@123456</div>
                 </button>
               </div>
